@@ -1,8 +1,11 @@
 // Kinect Physics Example by Amnon Owed (15/09/12)
-//edited by Arindam Sen
-//updated for openProcessing library and Processing 3 by Erik Nauman 9/16
+// edited by Arindam Sen
+// updated for openProcessing library and Processing 3 by Erik Nauman 9/16
+// updated for KinectPV2 by Harold Sikkema, February 2019
+// see http://codigogenerativo.com/code/kinectpv2-k4w2-processing-library/
+
 // import libraries
-import org.openkinect.processing.*;
+import KinectPV2.*;
 import blobDetection.*; // blobs
 import toxi.geom.*; // toxiclibs shapes and vectors
 import toxi.processing.*; // toxiclibs display
@@ -12,7 +15,8 @@ import org.jbox2d.dynamics.joints.*;
 import org.jbox2d.common.*; // jbox2d
 import org.jbox2d.dynamics.*; // jbox2d
 
-Kinect kinect;
+//Kinect kinect;
+KinectPV2 kinect;
 // declare BlobDetection object
 BlobDetection theBlobDetection;
 // ToxiclibsSupport for displaying polygons
@@ -21,19 +25,20 @@ ToxiclibsSupport gfx;
 PolygonBlob poly;
 
 // PImage to hold incoming imagery and smaller one for blob detection
+PImage cam;
 PImage blobs;
-// the kinect's dimensions to be used later on for calculations
-int kinectWidth = 640;
-int kinectHeight = 480;
-PImage cam = createImage(640, 480, RGB);
-int minThresh = 900;
-int maxThresh = 975;
-// to center and rescale from 640x480 to higher custom resolutions
+
+// the kinect's bodyTrackImage dimensions to be used later on for calculations
+int kinectWidth = 512;
+int kinectHeight = 424;
+
+// multiplier used to center and rescale to higher custom resolutions
 float reScale;
 
 // background and blob color
 color bgColor, blobColor;
-// three color palettes (artifact from me storingmany interesting color palettes as strings in an external data file ;-)
+// three color palettes 
+// (artifact from me storingmany interesting color palettes as strings in an external data file ;-)
 String[] palettes = {
   "-1117720,-13683658,-8410437,-9998215,-1849945,-5517090,-4250587,-14178341,-5804972,-3498634", 
   "-67879,-9633503,-8858441,-144382,-4996094,-16604779,-588031", 
@@ -49,11 +54,12 @@ ArrayList<CustomShape> polygons = new ArrayList<CustomShape>();
 void setup() {
   println("SET UP");
   // it's possible to customize this, for example 1920x1080
-  size(1280, 800, P3D);
-  kinect = new Kinect(this);
-  // mirror the image to be more intuitive
-  kinect.enableMirror(true);
-  kinect.initDepth();
+   size(1920,1080,P3D);
+  //fullScreen(P3D);
+  kinect = new KinectPV2(this);
+  kinect.enableBodyTrackImg(true);
+  kinect.init();
+  
   // calculate the reScale value
   // currently it's rescaled to fill the complete width (cuts of top-bottom)
   // it's also possible to fill the complete height (leaves empty sides)
@@ -109,30 +115,11 @@ void drawString(float x, float size, int cards) {
 
 void draw() {
   background(bgColor);
-  // update the kinect object
-  cam.loadPixels();
-
-  // Get the raw depth as array of integers
-  int[] depth = kinect.getRawDepth();
-  for (int x = 0; x < kinect.width; x++) {
-    for (int y = 0; y < kinect.height; y++) {
-      int offset = x + y * kinect.width;
-      int d = depth[offset];
-
-      if (d > minThresh && d < maxThresh) {
-        cam.pixels[offset] = color(255);
-      } else {
-        cam.pixels[offset] = color(0);
-      }
-    }
-  }
-
-  cam.updatePixels();
-  //image(cam, 0, 0); skip displaying depth image
+  PImage cam = kinect.getBodyTrackImage();
   // copy the image into the smaller blob image
   blobs.copy(cam, 0, 0, cam.width, cam.height, 0, 0, blobs.width, blobs.height);
   // blur the blob image, otherwise too many blog segments
-  blobs.filter(BLUR, 1);
+  blobs.filter(BLUR, 2);
   // detect the blobs
   theBlobDetection.computeBlobs(blobs.pixels);
   // initialize a new polygon
@@ -146,12 +133,13 @@ void draw() {
   // destroy the person's body (important!)
   poly.destroyBody();
   // set the colors randomly every 240th frame
-  setRandomColors(240);}
+  setRandomColors(240);
+}
 
 void updateAndDrawBox2D() {
   // if frameRate is sufficient, add a polygon and a circle with a random radius
 
-  if (frameRate > 30) {
+  if (frameRate > 24) {
     CustomShape shape1 = new CustomShape(kinectWidth/2, -50, -1, BodyType.DYNAMIC) ;
     CustomShape shape2 = new CustomShape(kinectWidth/2, -50, random(2.5, 20), BodyType.DYNAMIC);
     polygons.add(shape1);
